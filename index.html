@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISEE Score Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #e6f0ff, #ffffff);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 24px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      width: 800px;
+      max-width: 95%;
+    }
+
+    h2 {
+      text-align: center;
+      color: #007aff;
+      font-size: 28px;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin: 12px 0 6px;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      transition: border 0.3s;
+    }
+
+    input:focus {
+      outline: none;
+      border: 1px solid #007aff;
+      box-shadow: 0 0 4px rgba(0,122,255,0.5);
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+      background: #007aff;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #005ecb;
+    }
+
+    .results {
+      margin-top: 25px;
+    }
+
+    .result-card {
+      background: #f9fbff;
+      border-left: 6px solid #007aff;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+    }
+
+    .summary {
+      background: #e6f4ff;
+      border-left: 6px solid #005ecb;
+      padding: 16px;
+      margin: 20px 0;
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      font-size: 18px;
+      font-weight: 600;
+      color: #003d80;
+    }
+
+    canvas {
+      margin-top: 25px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>ISEE Score Calculator</h2>
+    
+    <label>Verbal Reasoning (0-40):</label>
+    <input type="number" id="verbal" max="40" min="0">
+
+    <label>Quantitative Reasoning (0-37):</label>
+    <input type="number" id="quant" max="37" min="0">
+
+    <label>Reading Comp (0-36):</label>
+    <input type="number" id="reading" max="36" min="0">
+
+    <label>Math Achievement (0-47):</label>
+    <input type="number" id="math" max="47" min="0">
+
+    <button onclick="calculate()">Calculate Score</button>
+
+    <div class="results" id="output"></div>
+
+    <!-- Charts -->
+    <canvas id="scoreChart"></canvas>
+    <canvas id="percentileChart"></canvas>
+  </div>
+
+  <script>
+    let scoreChart, percentileChart;
+
+    function calculate() {
+      let verbal = parseInt(document.getElementById("verbal").value) || 0;
+      let quant = parseInt(document.getElementById("quant").value) || 0;
+      let reading = parseInt(document.getElementById("reading").value) || 0;
+      let math = parseInt(document.getElementById("math").value) || 0;
+
+      function scale(raw, max) {
+        return Math.round(760 + (raw/max) * 180); // fake scaling
+      }
+
+      function stanine(scaled) {
+        if (scaled < 785) return 1;
+        if (scaled < 805) return 2;
+        if (scaled < 825) return 3;
+        if (scaled < 845) return 4;
+        if (scaled < 865) return 5;
+        if (scaled < 885) return 6;
+        if (scaled < 905) return 7;
+        if (scaled < 925) return 8;
+        return 9;
+      }
+
+      function percentile(stanine) {
+        // fake mapping just for visuals
+        let map = {1:10, 2:20, 3:30, 4:40, 5:50, 6:65, 7:80, 8:90, 9:97};
+        return map[stanine] || 50;
+      }
+
+      function makeCard(subject, raw, max) {
+        let scaled = scale(raw, max);
+        let stan = stanine(scaled);
+        let perc = percentile(stan);
+        return {
+          html: `
+            <div class="result-card">
+              <b>${subject}</b><br>
+              Raw Score: ${raw}/${max}<br>
+              Scaled Score: ${scaled}<br>
+              Stanine: ${stan}<br>
+              Percentile: ${perc}th
+            </div>
+          `,
+          scaled, stan, perc
+        };
+      }
+
+      let v = makeCard("Verbal Reasoning", verbal, 40);
+      let q = makeCard("Quantitative Reasoning", quant, 37);
+      let r = makeCard("Reading Comp", reading, 36);
+      let m = makeCard("Math Achievement", math, 47);
+
+      let avgScaled = Math.round((v.scaled + q.scaled + r.scaled + m.scaled) / 4);
+      let overallStanine = stanine(avgScaled);
+
+      document.getElementById("output").innerHTML = 
+        v.html + q.html + r.html + m.html +
+        `<div class="summary">
+          Overall Avg Scaled Score: ${avgScaled}<br>
+          Overall Stanine: ${overallStanine}
+        </div>`;
+
+      // Charts
+      let labels = ["Verbal", "Quantitative", "Reading", "Math"];
+      let scaledScores = [v.scaled, q.scaled, r.scaled, m.scaled];
+      let percentiles = [v.perc, q.perc, r.perc, m.perc];
+
+      // Destroy old charts if they exist
+      if (scoreChart) scoreChart.destroy();
+      if (percentileChart) percentileChart.destroy();
+
+      // Bar chart for scaled scores
+      scoreChart = new Chart(document.getElementById("scoreChart"), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Scaled Score',
+            data: scaledScores,
+            backgroundColor: '#007aff'
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { min: 760, max: 940, ticks: { stepSize: 20 } }
+          }
+        }
+      });
+
+      // Percentile chart
+      percentileChart = new Chart(document.getElementById("percentileChart"), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Percentile Rank',
+            data: percentiles,
+            borderColor: '#005ecb',
+            backgroundColor: '#cce0ff',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { min: 0, max: 100 }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
